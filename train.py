@@ -34,6 +34,11 @@ import datetime
 import pandas as pd
 import torch
 from seqeval.metrics import classification_report
+import wandb
+
+keyFile = open('wandb.key', 'r')
+WANDB_API_KEY = keyFile.readline().rstrip()
+wandb.login(key=WANDB_API_KEY)
 
 
 #modelCheckpoint = "distilbert-base-uncased"
@@ -254,6 +259,11 @@ training_args = TrainingArguments(
     save_strategy="epoch",
     load_best_model_at_end=True,
     push_to_hub=False,
+
+    # other args and kwargs here
+    report_to="wandb",  # enable logging to W&B
+    run_name="bert-ner",  # name of the W&B run (optional)
+    logging_steps=1,  # how often to log to W&B
 )
 
 trainer = Trainer(
