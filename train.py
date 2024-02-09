@@ -41,8 +41,8 @@ WANDB_API_KEY = keyFile.readline().rstrip()
 wandb.login(key=WANDB_API_KEY)
 
 
-#modelCheckpoint = "distilbert-base-uncased"
-modelCheckpoint = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract"
+modelCheckpoint = "distilbert-base-uncased"
+#modelCheckpoint = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract"
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print("Device=" +str(device))
@@ -322,7 +322,7 @@ for token, label in zip(tokenizer.convert_ids_to_tokens(inputs['input_ids'][0]),
 
 """# Alternatively use pipeline"""
 
-clf = pipeline("token-classification", model, tokenizer=tokenizer, device=0)
+clf = pipeline("token-classification", model, tokenizer=tokenizer, device=device)
 answer = clf(text)
 print(answer)
 
