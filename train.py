@@ -130,8 +130,8 @@ tokenized_input = tokenizer(document["tokens"], is_split_into_words=True)
 labels = document["ner_tags"]
 
 tokens = tokenizer.convert_ids_to_tokens(tokenized_input["input_ids"])
-print("Original-sentence:\t\t" +" ".join(document['tokens']))
-print("Transformer representation:\t" +" ".join(tokens))
+#print("Original-sentence:\t\t" +" ".join(document['tokens']))
+#print("Transformer representation:\t" +" ".join(tokens))
 
 def align_labels_with_tokens(labels, word_ids, id2label=id2label, label2id= label2id):
     new_labels = []
@@ -158,8 +158,8 @@ def align_labels_with_tokens(labels, word_ids, id2label=id2label, label2id= labe
     return new_labels
 
 word_ids = tokenized_input.word_ids()
-print(labels)
-print(align_labels_with_tokens(labels, word_ids))
+#print(labels)
+#print(align_labels_with_tokens(labels, word_ids))
 
 ## TODO Add here code to show how result would look like
 
@@ -184,8 +184,8 @@ tokenized_datasets = fullData.map(
 #for token, label in zip(tokenizer.convert_ids_to_tokens(inputs['input_ids'][0]), predicted_token_class):
 #    print(token, label)
 
-for token, label in zip(tokenizer.convert_ids_to_tokens(tokenized_datasets["train"]["input_ids"][0]), tokenized_datasets["train"]["labels"][0]):
-    print(token, id2label[label] if label in id2label else "O")
+#for token, label in zip(tokenizer.convert_ids_to_tokens(tokenized_datasets["train"]["input_ids"][0]), tokenized_datasets["train"]["labels"][0]):
+#    print(token, id2label[label] if label in id2label else "O")
 
 """## Tokenisierung
 Wie oben gesehen, werden zwei Sondersymbole/Token eingeführt. Der CLS und der SEP Token.  Teilwort-Tokenisierung führt somit zu einer Diskrepanz zwischen der Eingabe und den Labels. Ein einzelnes Wort, das einem einzigen Label entspricht, kann nun in zwei Teilwörter aufgeteilt werden.
