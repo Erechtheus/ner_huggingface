@@ -44,7 +44,8 @@ wandb.login(key=WANDB_API_KEY)
 #modelCheckpoint = "distilbert-base-uncased"
 modelCheckpoint = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract"
 
-
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+print("Device=" +str(device))
 
 f = requests.get("https://raw.githubusercontent.com/Erechtheus/mutationCorpora/master/corpora/IOB/SETH-train.iob")
 trainFile = f.text.split("\n")
@@ -246,6 +247,7 @@ model = AutoModelForTokenClassification.from_pretrained(
     id2label=id2label,
     label2id=label2id
 )
+model.to(device)
 
 training_args = TrainingArguments(
     output_dir="my_awesome_wnut_model",
@@ -301,7 +303,7 @@ print(inputs)
 
 """Input und Model müssen im selben RAM (hier GPU) liegen."""
 
-inputs.to(0)
+inputs.to(device)
 
 with torch.no_grad():
   logits = model(**inputs).logits
