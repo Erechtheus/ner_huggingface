@@ -281,6 +281,8 @@ trainer = Trainer(
 
 start = time.time()
 trainer.train()
+#Plot
+"""
 print("Finished after " +str(datetime.timedelta(seconds=round(time.time() - start))))
 
 pd.DataFrame(trainer.state.log_history).head(5)
@@ -290,7 +292,7 @@ df = df[df.eval_runtime.notnull()]
 df.plot(x='epoch', y=['eval_loss'], kind='bar')
 
 df.plot(x='epoch', y=['eval_precision', 'eval_recall', 'eval_f1'], kind='bar', figsize=(15,9))
-
+"""
 """# Inferenz
 Wir wollen für den unten genannten Text die Entitäten vorhersagen.
 """
