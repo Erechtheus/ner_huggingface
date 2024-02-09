@@ -107,7 +107,6 @@ fullData = DatasetDict({
     'test' : Dataset.from_pandas(pd.DataFrame(data=testCorpus))
     })
 
-fullData
 
 """### Trainingsinstanzen:
 Für Eigennamenerkennung werden die Daten häufig bereits vortokenisiert und in einem IOB Format verfügbar gemacht:
@@ -296,21 +295,22 @@ df.plot(x='epoch', y=['eval_precision', 'eval_recall', 'eval_f1'], kind='bar', f
 Wir wollen für den unten genannten Text die Entitäten vorhersagen.
 """
 
-
+"""
 text = "Identification of four novel mutations in the factor VIII gene: three missense mutations (E1875G, G2088S, I2185T) and a 2-bp deletion (1780delTC)."
 
 inputs = tokenizer(text, return_tensors="pt")
 print(inputs)
+"""
 
 """Input und Model müssen im selben RAM (hier GPU) liegen."""
-
+"""
 inputs.to(device)
 
 with torch.no_grad():
   logits = model(**inputs).logits
-
+"""
 """Über logits ermitteln wir  die Klasse mit der höchsten Wahrscheinlichkeit und verwenden die id2label-Zuordnung des Modells, um sie in eine Textbezeichnung umzuwandeln."""
-
+"""
 print(logits)
 
 predictions = torch.argmax(logits, dim=2)
@@ -318,13 +318,13 @@ predicted_token_class = [model.config.id2label[t.item()] for t in predictions[0]
 
 for token, label in zip(tokenizer.convert_ids_to_tokens(inputs['input_ids'][0]), predicted_token_class):
     print(token, label)
-
+"""
 """# Alternatively use pipeline"""
-
+"""
 clf = pipeline("token-classification", model, tokenizer=tokenizer, device=device)
 answer = clf(text)
 print(answer)
-
+"""
 """# Final eval"""
 
 predictions = trainer.predict(tokenized_datasets["test"])
