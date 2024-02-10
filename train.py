@@ -33,12 +33,18 @@ import time
 import pandas as pd
 import torch
 from seqeval.metrics import classification_report
-#import wandb
+import wandb
 
-#keyFile = open('wandb.key', 'r')
-#WANDB_API_KEY = keyFile.readline().rstrip()
-#wandb.login(key=WANDB_API_KEY)
+keyFile = open('wandb.key', 'r')
+WANDB_API_KEY = keyFile.readline().rstrip()
+wandb.login(key=WANDB_API_KEY)
 
+#run = wandb.init(
+#    project="HF-NER",
+#    notes="NER using HF",
+#    tags=["baseline", "bert"],
+#)
+wandb.init(mode="disabled")
 
 modelCheckpoint = "distilbert-base-uncased"
 #modelCheckpoint = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract"
@@ -261,9 +267,9 @@ training_args = TrainingArguments(
     push_to_hub=False,
 
     # other args and kwargs here
-#    report_to="wandb",  # enable logging to W&B
-#    run_name="bert-ner",  # name of the W&B run (optional)
-#    logging_steps=1,  # how often to log to W&B
+    report_to="wandb",  # enable logging to W&B
+    run_name="bert-ner",  # name of the W&B run (optional)
+    logging_steps=1,  # how often to log to W&B
 )
 
 trainer = Trainer(
