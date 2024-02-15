@@ -25,29 +25,29 @@ from datasets import Dataset
 from datasets import DatasetDict
 from transformers import AutoTokenizer
 from transformers import DataCollatorForTokenClassification
-from transformers import pipeline
 import evaluate
 import numpy as np
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
-import time
 import pandas as pd
 import torch
-from seqeval.metrics import classification_report
 import wandb
 
 keyFile = open('wandb.key', 'r')
 WANDB_API_KEY = keyFile.readline().rstrip()
 wandb.login(key=WANDB_API_KEY)
 
-#run = wandb.init(
-#    project="HF-NER",
-#    notes="NER using HF",
-#    tags=["baseline", "bert"],
-#)
-wandb.init(mode="disabled")
+run = wandb.init(
+    project="bert-ner",
+    notes="NER using HF",
+    tags=["baseline", "bert"],
+)
 
 modelCheckpoint = "distilbert-base-uncased"
 #modelCheckpoint = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract"
+epochs= 3
+lr = 2e-5
+batchSize = 4
+trainAllParameters = True
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print("Device=" +str(device))
@@ -87,19 +87,14 @@ del(trainFile)
 del(testFile)
 
 """### Übersicht über alle IOB labels"""
-
-
 label_list = sorted(list(set(list(itertools.chain(*list(map(lambda x : x["str_tags"], trainCorpus)))))))
 
 """Das ergibt folgende Labelmaps:"""
-
 label2id = dict(zip(label_list, range(len(label_list))))
 id2label = {v: k for k, v in label2id.items()}
 
-
-
-print(id2label)
-print(label2id)
+#print(id2label)
+#print(label2id)
 
 for document in trainCorpus:
   document["ner_tags"] = list(map(lambda x : label2id[x], document["str_tags"]))
@@ -107,12 +102,17 @@ for document in trainCorpus:
 for document in testCorpus:
   document["ner_tags"] = list(map(lambda x : label2id[x], document["str_tags"]))
 
+tmpDataset = Dataset.from_pandas(pd.DataFrame(data=trainCorpus)).train_test_split(seed=23213987)
 
 fullData = DatasetDict({
-    'train' : Dataset.from_pandas(pd.DataFrame(data=trainCorpus)),
+    'train' : tmpDataset['train'],
+    'dev'   : tmpDataset['test'],
     'test' : Dataset.from_pandas(pd.DataFrame(data=testCorpus))
     })
 
+del(tmpDataset)
+del(trainCorpus)
+del(testCorpus)
 
 """### Trainingsinstanzen:
 Für Eigennamenerkennung werden die Daten häufig bereits vortokenisiert und in einem IOB Format verfügbar gemacht:
@@ -217,10 +217,6 @@ Wir definieren die Funktion compute_metrics, welche die Vorhersage in "echte" IO
 
 """
 
-
-#labels = [label_list[i] for i in example[f"ner_tags"]]
-
-
 def compute_metrics(p):
     predictions, labels = p
     predictions = np.argmax(predictions, axis=2)
@@ -236,10 +232,14 @@ def compute_metrics(p):
 
     results = seqeval.compute(predictions=true_predictions, references=true_labels)
     return {
-        "precision": results["overall_precision"],
-        "recall": results["overall_recall"],
-        "f1": results["overall_f1"],
-        "accuracy": results["overall_accuracy"],
+        "overall_precision": results["overall_precision"],
+        "overall_recall": results["overall_recall"],
+        "overall_f1": results["overall_f1"],
+        "overall_accuracy": results["overall_accuracy"],
+
+        "SNP_precision" : results['SNP']['precision'],
+        "SNP_recall": results['SNP']['recall'],
+        "SNP_f1": results['SNP']['f1'],
     }
 
 """# Training"""
@@ -251,108 +251,79 @@ model = AutoModelForTokenClassification.from_pretrained(
     id2label=id2label,
     label2id=label2id
 )
+
+#Freeze parameters?
+if trainAllParameters == False:
+    for param in model.base_model.parameters():
+        param.requires_grad = False
+
 model.to(device)
 
 training_args = TrainingArguments(
     output_dir="my_awesome_wnut_model",
-    learning_rate=2e-5,
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
-    num_train_epochs=5,
+    per_device_train_batch_size=batchSize,
+    per_device_eval_batch_size=batchSize,
+    learning_rate=lr,
+    num_train_epochs=epochs,
     weight_decay=0.01,
     save_total_limit = 3,
     evaluation_strategy="epoch",
     save_strategy="epoch",
-    load_best_model_at_end=True,
     push_to_hub=False,
 
     # other args and kwargs here
     report_to="wandb",  # enable logging to W&B
     run_name="bert-ner",  # name of the W&B run (optional)
     logging_steps=1,  # how often to log to W&B
+
+    load_best_model_at_end=True,
+    metric_for_best_model="overall_f1",
 )
 
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_datasets["train"],
-    eval_dataset=tokenized_datasets["test"],
+    eval_dataset=tokenized_datasets["dev"],
     tokenizer=tokenizer,
     data_collator=data_collator,
     compute_metrics=compute_metrics,
 )
 
 
-start = time.time()
 trainer.train()
-#Plot
-"""
-print("Finished after " +str(datetime.timedelta(seconds=round(time.time() - start))))
 
-pd.DataFrame(trainer.state.log_history).head(5)
+#Apply on test
+predictions, labels, _ = trainer.predict(tokenized_datasets["test"])
+predictions = np.argmax(predictions, axis=2)
 
-df = pd.DataFrame(trainer.state.log_history)
-df = df[df.eval_runtime.notnull()]
-df.plot(x='epoch', y=['eval_loss'], kind='bar')
+# Remove ignored index (special tokens)
+true_predictions = [
+    [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
+    for prediction, label in zip(predictions, labels)
+]
+true_labels = [
+    [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
+    for prediction, label in zip(predictions, labels)
+]
 
-df.plot(x='epoch', y=['eval_precision', 'eval_recall', 'eval_f1'], kind='bar', figsize=(15,9))
-"""
-"""# Inferenz
-Wir wollen für den unten genannten Text die Entitäten vorhersagen.
-"""
+results = seqeval.compute(predictions=true_predictions, references=true_labels)
 
-"""
+print(results)
+
+
+#For one single sentence
 text = "Identification of four novel mutations in the factor VIII gene: three missense mutations (E1875G, G2088S, I2185T) and a 2-bp deletion (1780delTC)."
 
 inputs = tokenizer(text, return_tensors="pt")
-print(inputs)
-"""
-
-"""Input und Model müssen im selben RAM (hier GPU) liegen."""
-"""
 inputs.to(device)
 
 with torch.no_grad():
   logits = model(**inputs).logits
-"""
-"""Über logits ermitteln wir  die Klasse mit der höchsten Wahrscheinlichkeit und verwenden die id2label-Zuordnung des Modells, um sie in eine Textbezeichnung umzuwandeln."""
-"""
-print(logits)
+
 
 predictions = torch.argmax(logits, dim=2)
 predicted_token_class = [model.config.id2label[t.item()] for t in predictions[0]]
 
 for token, label in zip(tokenizer.convert_ids_to_tokens(inputs['input_ids'][0]), predicted_token_class):
     print(token, label)
-"""
-"""# Alternatively use pipeline"""
-"""
-clf = pipeline("token-classification", model, tokenizer=tokenizer, device=device)
-answer = clf(text)
-print(answer)
-"""
-"""# Final eval"""
-
-predictions = trainer.predict(tokenized_datasets["test"])
-
-
-for testDoc in tokenized_datasets["test"]:
-  with torch.no_grad():
-    logits = model(**testDoc).logits
-
-pred = []
-for line in np.argmax(predictions.predictions, axis=2):
-  pred.append([id2label[a] for a in line if a != 0])
-
-print(len(pred[1]))
-
-gold = []
-for line in tokenized_datasets["test"]["labels"]:
-  #print([id2label[a] for a in line if a != -100] )
-  gold.append([id2label[a] for a in line if a != -100 ])
-
-np.argmax(predictions.predictions, axis=2)[0]
-
-tokenized_datasets["test"]["labels"][0]
-
-print(classification_report(gold, pred))
