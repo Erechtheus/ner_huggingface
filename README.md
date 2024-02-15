@@ -4,10 +4,13 @@ Named Entity Recognition using huggingface
 
 ## Setup:
 
-`conda install transformers
-conda install datasets 
-conda install evaluate 
-conda install seqeval
-conda install wandb
-conda install accelerate
-pip install torch`
+```
+pip install transformers
+pip install torch
+
+pip install datasets 
+pip install evaluate 
+pip install seqeval
+pip install wandb
+pip install accelerate -U
+```
